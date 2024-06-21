@@ -1,7 +1,7 @@
 const CryptoJS = require('crypto-js');
 const hexToBinary = require('../../utils/hexToBinary');
 
-const defaultDifficulty = 0;
+const { defaultDifficulty } = require('../../utils/const');;
 
 class Block {
   constructor({ index, previousHash, timestamp, transactions, hash, difficulty, nonce = 0 }) {

@@ -1,7 +1,8 @@
 const { ec } = require('elliptic');
-const fs = require('fs');
 const _ = require('lodash');
-const { getPublicKey, Transaction, TxIn, TxOut } = require('./transaction');
+const { Transaction, TxIn, TxOut } = require('./transaction');
+const getPublic = require('../../utils/get-public');
+const { INIT_WALLET_BALANCE } = require('../../utils/const');
 
 const EC = new ec('secp256k1');
 
@@ -19,7 +20,7 @@ class Wallet {
 
     static initWallet(blockchain) {
         const newPrivateKey = this.generatePrivateKey();
-        blockchain.generateNextBlockWithTransactions(blockchain.privateKey, this.getPublicFromWallet(newPrivateKey), 10000);
+        blockchain.generateNextBlockWithTransactions(blockchain.privateKey, this.getPublicFromWallet(newPrivateKey), INIT_WALLET_BALANCE);
         return newPrivateKey;
     };
 
@@ -34,9 +35,7 @@ class Wallet {
     };
 
     static createTransaction(receiverAddress, amount, privateKey, unspentTxOuts, txPool) {
-
-        console.log('txPool: %s', JSON.stringify(txPool));
-        const myAddress = getPublicKey(privateKey);
+        const myAddress = getPublic(privateKey);
         const myUnspentTxOutsA = unspentTxOuts.filter((uTxO) => uTxO.address === myAddress);
         const myUnspentTxOuts = filterTxPoolTxs(myUnspentTxOutsA, txPool);
 
