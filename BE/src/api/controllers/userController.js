@@ -1,4 +1,22 @@
 const jwt = require('jsonwebtoken');
+const Blockchain = require('../../domain/models/blockchain');
+const Wallet = require('../../domain/models/wallet');
+
+const newBlockchain = new Blockchain();
+console.log("start send transaction");
+const walletSecret1 = Wallet.initWallet(newBlockchain);
+const walletAddress1 = Wallet.getPublicFromWallet(walletSecret1);
+//console.log("walletAddress1:", walletAddress1);
+
+const walletSecret2 = Wallet.initWallet(newBlockchain);
+const walletAddress2 = Wallet.getPublicFromWallet(walletSecret2);
+//console.log("walletAddress2:", walletAddress2);
+
+newBlockchain.generateNextBlockWithTransactions(walletSecret1, walletAddress2, 1000);
+
+console.log(Wallet.getBalance(newBlockchain.publicKey, newBlockchain.unspentTxOuts));
+console.log(Wallet.getBalance(walletAddress1, newBlockchain.unspentTxOuts));
+console.log(Wallet.getBalance(walletAddress2, newBlockchain.unspentTxOuts));
 
 class User {
     constructor(username, password) {

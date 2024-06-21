@@ -1,5 +1,7 @@
-const crypto = require('crypto');
-const defaultDifficulty = 2;
+const CryptoJS = require('crypto-js');
+const hexToBinary = require('../../utils/hexToBinary');
+
+const defaultDifficulty = 0;
 
 class Block {
   constructor({ index, previousHash, timestamp, transactions, hash, difficulty, nonce = 0 }) {
@@ -16,7 +18,7 @@ class Block {
     return new Block({
       index,
       previousHash,
-      timestamp: Date.now(),
+      timestamp: Math.round(new Date().getTime() / 1000),
       transactions,
       hash: null,
       difficulty: difficulty || defaultDifficulty,
@@ -24,18 +26,32 @@ class Block {
   }
 
   computeHash() {
-    return crypto.createHash('sha256')
-                 .update(this.index + this.previousHash + this.timestamp + JSON.stringify(this.transactions) + this.difficulty + this.nonce)
-                 .digest('hex');
+    return CryptoJS.SHA256(this.index + this.previousHash + this.timestamp + this.transactions + this.difficulty + this.nonce).toString();
   }
 
-  mineBlock() {
-    this.hash = this.computeHash();
-    while (!this.hash.startsWith('0'.repeat(this.difficulty))) {
-      this.nonce++;
-      this.hash = this.computeHash();
-    }
+  static calculateHash(index, previousHash, timestamp, transactions, difficulty, nonce) {
+    return CryptoJS.SHA256(index + previousHash + timestamp + transactions + difficulty + nonce).toString();
   }
+
+  static hashMatchesDifficulty(hash, difficulty) {
+    const hashInBinary = hexToBinary(hash);
+    const requiredPrefix = '0'.repeat(difficulty);
+    return hashInBinary.startsWith(requiredPrefix);
+  }
+
+  static isValidBlockStructure(block) {
+    return typeof block.index === 'number' &&
+      typeof block.hash === 'string' &&
+      typeof block.previousHash === 'string' &&
+      typeof block.timestamp === 'number' &&
+      Array.isArray(block.transactions);
+  }
+
+  static hashMatchesBlockContent(block) {
+    const blockHash = block.computeHash();
+    return blockHash === block.hash;
+  }
+
 }
 
 module.exports = Block;
