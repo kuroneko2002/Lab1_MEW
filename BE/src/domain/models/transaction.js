@@ -1,9 +1,11 @@
 const CryptoJS = require('crypto-js');
 const { ec: EC } = require('elliptic');
 const _ = require('lodash');
+const isValidAddress = require('../../utils/is-valid-address');
+const getPublicKey = require('../../utils/get-public');
 
 const ec = new EC('secp256k1');
-const COINBASE_AMOUNT = 50;
+const { COINBASE_AMOUNT } = require('../../utils/const');;
 
 class UnspentTxOut {
     constructor(txOutId, txOutIndex, address, amount) {
@@ -41,7 +43,7 @@ class Transaction {
         const txOutContent = this.txOuts.map(txOut => txOut.address + txOut.amount).reduce((a, b) => a + b, '');
         return CryptoJS.SHA256(txInContent + txOutContent).toString();
     }
-    
+
     static getTransactionId(transaction) {
         const txInContent = transaction.txIns.map(txIn => txIn.txOutId + txIn.txOutIndex).reduce((a, b) => a + b, '');
         const txOutContent = transaction.txOuts.map(txOut => txOut.address + txOut.amount).reduce((a, b) => a + b, '');
@@ -118,24 +120,7 @@ class Transaction {
 /// SUPPORT FUNCTIONS ///
 const toHexString = byteArray => Array.from(byteArray, byte => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
 
-const getPublicKey = aPrivateKey => ec.keyFromPrivate(aPrivateKey, 'hex').getPublic().encode('hex');
-
 const findUnspentTxOut = (transactionId, index, aUnspentTxOuts) => aUnspentTxOuts.find(uTxO => uTxO.txOutId === transactionId && uTxO.txOutIndex === index);
-
-const isValidAddress = (address) => {
-    if (address.length !== 130) {
-        console.log('Invalid public key length');
-        return false;
-    } else if (address.match('^[a-fA-F0-9]+$') === null) {
-        console.log('Public key must contain only hex characters');
-        return false;
-    } else if (!address.startsWith('04')) {
-        console.log('Public key must start with 04');
-        return false;
-    } else {
-        return true;
-    }
-};
 
 const isValidTxOutStructure = (txOut) => {
     if (!txOut) {
@@ -210,7 +195,7 @@ const validateCoinbaseTx = (transaction, blockIndex) => {
         console.log('The first transaction in the block must be coinbase transaction');
         return false;
     }
-    
+
     if (Transaction.getTransactionId(transaction) !== transaction.id) {
         console.log(`Invalid coinbase tx id: ${transaction.id}`);
         return false;
@@ -291,7 +276,5 @@ module.exports = {
     UnspentTxOut,
     TxIn,
     TxOut,
-    Transaction,
-    getPublicKey,
-    isValidAddress,
+    Transaction
 };

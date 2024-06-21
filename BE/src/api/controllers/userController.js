@@ -1,68 +1,56 @@
-const jwt = require('jsonwebtoken');
-const Blockchain = require('../../domain/models/blockchain');
-const Wallet = require('../../domain/models/wallet');
+const { SetResponse } = require('../../utils/success-response');
+const { STATUS_CODES } = require('../../utils/app-errors');
+const BlockchainService = require('../../application/services');
 
-const newBlockchain = new Blockchain();
-console.log("start send transaction");
-const walletSecret1 = Wallet.initWallet(newBlockchain);
-const walletAddress1 = Wallet.getPublicFromWallet(walletSecret1);
-//console.log("walletAddress1:", walletAddress1);
+const bcService = new BlockchainService();
 
-const walletSecret2 = Wallet.initWallet(newBlockchain);
-const walletAddress2 = Wallet.getPublicFromWallet(walletSecret2);
-//console.log("walletAddress2:", walletAddress2);
-
-newBlockchain.generateNextBlockWithTransactions(walletSecret1, walletAddress2, 1000);
-
-console.log(Wallet.getBalance(newBlockchain.publicKey, newBlockchain.unspentTxOuts));
-console.log(Wallet.getBalance(walletAddress1, newBlockchain.unspentTxOuts));
-console.log(Wallet.getBalance(walletAddress2, newBlockchain.unspentTxOuts));
-
-class User {
-    constructor(username, password) {
-        this.username = username;
-        this.password = User.hashPassword(password);
-    }
-
-    static hashPassword(password) {
-        return password;
-    }
-
-    static validatePassword(user, password) {
-        return user.password === password;
-    }
-    
-}
-
-const secretKey = 'TNH_BLOCKCHAIN_LAB';
-
-const users = [];
 function register(req, res) {
-    const { username, password } = req.body;
-    if (users.find(user => user.username === username)) {
-        return res.status(400).send('User already exists');
-    }
-
-    const user = new User(username, password);
-    users.push(user);
-    res.status(201).send('User registered successfully');
+    const privateKey = bcService.register();
+    SetResponse(res, STATUS_CODES.OK, privateKey, "Create new wallet successfully!", null);
 }
 
 function login(req, res) {
-    const { username, password } = req.body;
-    const user = users.find(user => user.username === username);
-
-    if (!user || !User.validatePassword(user, password)) {
-        return res.status(401).send('Invalid username or password');
+    const privateKey = req.body.privateKey;
+    const walletAddress = bcService.login(privateKey);
+    if (walletAddress === null) {
+        SetResponse(res, STATUS_CODES.BAD_REQUEST, null, "Login failed!", null);
+        return;
     }
+    SetResponse(res, STATUS_CODES.OK, walletAddress, "Login successfully!", null);
+}
 
-    const accessToken = jwt.sign({ username: user.username }, secretKey);
-    res.json({ accessToken });
+function getBalance(req, res) {
+    const balance = bcService.getBalance(req.body.privateKey);
+    SetResponse(res, STATUS_CODES.OK, balance, "Get balance successfully!", null);
+}
+
+function transfer(req, res) {
+    const { privateKey, receiverAddress, amount } = req.body;
+    const transferBlock = bcService.transfer(privateKey, receiverAddress, amount);
+    if (transferBlock === null) {
+        SetResponse(res, STATUS_CODES.BAD_REQUEST, null, "Transfer failed!", null);
+        return;
+    }
+    SetResponse(res, STATUS_CODES.OK, transferBlock, "Transfer successfully!", null);
+}
+
+function historyTransaction(req, res) {
+    const history = bcService.historyTransaction(req.body.privateKey);
+    SetResponse(res, STATUS_CODES.OK, history, "Get history transaction successfully!", null);
+}
+
+function getBlockchain(req, res) {
+    const chain = bcService.getBlockchain();
+    SetResponse(res, STATUS_CODES.OK, chain, "Get blockchain successfully!", null);
 }
 
 const userController = {
     register,
     login,
+    getBalance,
+    transfer,
+    historyTransaction,
+    getBlockchain
 };
 
 module.exports = userController;

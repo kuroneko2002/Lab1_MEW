@@ -1,13 +1,11 @@
 const _ = require('lodash');
 const Block = require('./block');
-const { isValidAddress, Transaction, TxIn, TxOut } = require('./transaction');
+const { Transaction, TxIn, TxOut } = require('./transaction');
 const TransactionPool = require('./transactionPool');
 const Wallet = require('./wallet');
+const isValidAddress = require('../../utils/is-valid-address');
 
-const BLOCK_GENERATION_INTERVAL = 10;
-const DIFFICULTY_ADJUSTMENT_INTERVAL = 10;
-const COINBASE_AMOUNT = 50;
-const INIT_BC_BALANCE = 1000000;
+const { defaultDifficulty, BLOCK_GENERATION_INTERVAL, DIFFICULTY_ADJUSTMENT_INTERVAL, INIT_BC_BALANCE } = require('../../utils/const');
 
 
 // generate public and private key for headmaster account //
@@ -35,7 +33,7 @@ class Blockchain {
     }
 
     createGenesisBlock() {
-        const genesisBlock = Block.createBlock(0, '', [genesisTransaction], 0);
+        const genesisBlock = Block.createBlock(0, '', [genesisTransaction], defaultDifficulty);
         return findBlock(0, genesisBlock.hash, genesisBlock.timestamp, genesisBlock.transactions, genesisBlock.difficulty);
     }
 
@@ -143,9 +141,36 @@ class Blockchain {
         }
 
     }
+
+    getHistoryTransaction(privateKey) {
+        const walletAddress = Wallet.getPublicFromWallet(privateKey);
+        /// find the transactions that related to this wallet address
+        const history = {
+            receive: [],
+            transfer: []
+        };
+        this.chain.forEach(block => {
+            block.transactions.forEach(transaction => {
+                const key = ec.keyFromPrivate(privateKey, 'hex');
+                const txInSignature = toHexString(key.sign(transaction.id).toDER());
+                if (transaction.txIns.find(txIn => txIn.signature === txInSignature)) {
+                    history.transfer.push(transaction);
+                }
+                else {
+                    if(transaction.txOuts.find(txOut => txOut.address === walletAddress)) {
+                        history.receive.push(transaction);
+                    }
+                }
+            });
+        });
+        history.receive = history.receive.slice(1);
+        return history;
+    }
 }
 
 /// SUPPORT FUNCTIONS ///
+const toHexString = byteArray => Array.from(byteArray, byte => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
+
 const getAdjustedDifficulty = (latestBlock, aBlockchain) => {
     const prevAdjustmentBlock = aBlockchain[aBlockchain.length - DIFFICULTY_ADJUSTMENT_INTERVAL];
     const timeExpected = BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSTMENT_INTERVAL;
