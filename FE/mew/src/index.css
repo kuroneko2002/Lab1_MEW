@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.ct-top-menu-item {
+  @apply cursor-pointer py-1 text-lg leading-6 font-medium;
+}
+
+.ct-hover-opacity {
+  @apply hover:transition-opacity ease-in-out hover:opacity-50;
+}
+
+.ct-header-badge {
+  @apply cursor-pointer text-center justify-center px-4 pt-1 h-10 rounded-3xl ct-hover-opacity;
+}
