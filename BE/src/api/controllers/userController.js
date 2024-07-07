@@ -10,13 +10,18 @@ function register(req, res) {
 }
 
 function login(req, res) {
-    const privateKey = req.body.privateKey;
-    const walletAddress = bcService.login(privateKey);
-    if (walletAddress === null) {
-        SetResponse(res, STATUS_CODES.BAD_REQUEST, null, "Login failed!", null);
-        return;
+    try {
+        const privateKey = req.body.privateKey;
+        const walletAddress = bcService.login(privateKey);
+        if (walletAddress === null) {
+            SetResponse(res, STATUS_CODES.UNAUTHORIZED, null, "Login failed!", null);
+            return;
+        }
+        SetResponse(res, STATUS_CODES.OK, walletAddress, "Login successfully!", null);
+    } catch (error) {
+        SetResponse(res, STATUS_CODES.INTERNAL_SERVER_ERROR, null, "Login failed!", null);
+
     }
-    SetResponse(res, STATUS_CODES.OK, walletAddress, "Login successfully!", null);
 }
 
 function getBalance(req, res) {
@@ -25,13 +30,17 @@ function getBalance(req, res) {
 }
 
 function transfer(req, res) {
-    const { privateKey, receiverAddress, amount } = req.body;
-    const transferBlock = bcService.transfer(privateKey, receiverAddress, amount);
-    if (transferBlock === null) {
-        SetResponse(res, STATUS_CODES.BAD_REQUEST, null, "Transfer failed!", null);
-        return;
+    try {
+        const { privateKey, receiverAddress, amount } = req.body;
+        const transferBlock = bcService.transfer(privateKey, receiverAddress, amount);
+        if (transferBlock === null) {
+            SetResponse(res, STATUS_CODES.BAD_REQUEST, null, "Transfer failed!", null);
+            return;
+        }
+        SetResponse(res, STATUS_CODES.OK, transferBlock, "Transfer successfully!", null);
+    } catch (error) {
+        SetResponse(res, STATUS_CODES.BAD_REQUEST, null, "Transfer failed: " + error.message, null);
     }
-    SetResponse(res, STATUS_CODES.OK, transferBlock, "Transfer successfully!", null);
 }
 
 function historyTransaction(req, res) {
