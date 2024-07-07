@@ -24,7 +24,7 @@ http://localhost:3000/user/register
 
 [POST]
 ```
-http://localhost:3000/user/register
+http://localhost:3000/user/login
 body: {
     "privateKey" : "abc"
 }

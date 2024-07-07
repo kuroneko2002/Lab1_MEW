@@ -13,3 +13,11 @@
 .ct-header-badge {
   @apply cursor-pointer text-center justify-center px-4 pt-1 h-10 rounded-3xl ct-hover-opacity;
 }
+
+.ct-alert {
+  @apply p-5 bg-red-500 text-white;
+}
+
+.ct-dashboard-column {
+  @apply flex-col flex w-1/2 min-h-max p-5 m-5 bg-white rounded-lg shadow-md;
+}
