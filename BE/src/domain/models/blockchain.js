@@ -5,7 +5,7 @@ const TransactionPool = require('./transactionPool');
 const Wallet = require('./wallet');
 const isValidAddress = require('../../utils/is-valid-address');
 
-const { defaultDifficulty, BLOCK_GENERATION_INTERVAL, DIFFICULTY_ADJUSTMENT_INTERVAL, INIT_BC_BALANCE } = require('../../utils/const');
+const { INIT_BC_BALANCE, COINBASE_AMOUNT } = require('../../utils/const');
 
 
 // generate public and private key for headmaster account //
@@ -30,11 +30,14 @@ class Blockchain {
         this.publicKey = publicKey;
         this.chain = [this.createGenesisBlock()];
         this.unspentTxOuts = Transaction.processTransactions(this.chain[0].transactions, [], 0);
+        this.stakeMap = {};
+        this.stakeMap[this.publicKey] = INIT_BC_BALANCE;
     }
 
     createGenesisBlock() {
-        const genesisBlock = Block.createBlock(0, '', [genesisTransaction], defaultDifficulty);
-        return findBlock(0, genesisBlock.hash, genesisBlock.timestamp, genesisBlock.transactions, genesisBlock.difficulty);
+        const genesisBlock = Block.createBlock(0, '', [genesisTransaction], this.publicKey);
+        genesisBlock.hash = genesisBlock.computeHash();
+        return genesisBlock;
     }
 
     getBlockchain() {
@@ -75,18 +78,25 @@ class Blockchain {
                 this.chain.push(newBlock);
                 this.unspentTxOuts = retVal;
                 TransactionPool.updateTransactionPool(this.unspentTxOuts);
+                this.updateStakeMap(newBlock.transactions);
                 return true;
             }
         }
         return false;
     }
 
-    generateRawNextBlock(transactions) {
+    generateRawNextBlock(transactions, validator) {
         const previousBlock = this.getLatestBlock();
-        const difficulty = getDifficulty(this.getBlockchain());
         const nextIndex = previousBlock.index + 1;
         const nextTimestamp = getCurrentTimestamp();
-        const newBlock = findBlock(nextIndex, previousBlock.hash, nextTimestamp, transactions, difficulty);
+        const newBlock = new Block({
+            index: nextIndex,
+            previousHash: previousBlock.hash,
+            timestamp: nextTimestamp,
+            transactions: transactions,
+            validator: validator,
+        })
+        newBlock.hash = newBlock.computeHash();
         if (this.addBlockToChain(newBlock)) {
             return newBlock;
         } else {
@@ -94,14 +104,48 @@ class Blockchain {
         }
     }
 
+    selectValidator() {
+        const stakeMapClone = _.cloneDeep(this.stakeMap);
+        if (Object.keys(stakeMapClone).length > 2) {
+            // remove the headmaster account
+            delete stakeMapClone[this.publicKey];
+        }
+        const totalStake = Object.values(stakeMapClone).reduce((acc, stake) => acc + stake, 0);
+        const rand = Math.random() * totalStake;
+        let sum = 0;
+        for (let [validator, stake] of Object.entries(stakeMapClone)) {
+            sum += stake;
+            if (rand < sum) {
+                return validator;
+            }
+        }
+    }
+
+    updateStakeMap(transactions) {
+        transactions.forEach((tx, index) => {
+            if (index === 0) {  // coinbase transaction
+                this.stakeMap[tx.txOuts[0].address] += COINBASE_AMOUNT;
+            }
+            else {
+                this.stakeMap[tx.txOuts[0].address] += tx.txOuts[0].amount;
+                this.stakeMap[tx.txOuts[1].address] -= tx.txOuts[0].amount;
+            }
+        });
+    }
+
+    getMyStake(privateKey) {
+        return this.stakeMap[Wallet.getPublicFromWallet(privateKey)];
+    }
+
     getMyUnspentTransactionOutputs(privateKey) {
         return Wallet.findUnspentTxOuts(Wallet.getPublicFromWallet(privateKey), this.getUnspentTxOuts);
     }
 
     generateNextBlock(privateKey) {
-        const coinbaseTx = Transaction.getCoinbaseTransaction(Wallet.getPublicFromWallet(privateKey), this.getLatestBlock().index + 1);
+        const validator = this.selectValidator();
+        const coinbaseTx = Transaction.getCoinbaseTransaction(validator, this.getLatestBlock().index + 1);
         const blockData = [coinbaseTx].concat(TransactionPool.getTransactionPool());
-        return this.generateRawNextBlock(blockData);
+        return this.generateRawNextBlock(blockData, validator);
     }
 
     generateNextBlockWithTransactions(privateKey, receiverAddress, amount) {
@@ -111,10 +155,14 @@ class Blockchain {
         if (typeof amount !== 'number') {
             throw Error('invalid amount');
         }
-        const coinbaseTx = Transaction.getCoinbaseTransaction(publicKey, this.getLatestBlock().index + 1);
+        if (this.stakeMap[receiverAddress] === undefined || this.stakeMap[receiverAddress] === null) {
+            this.stakeMap[receiverAddress] = 0;
+        }
+        const validator = this.selectValidator();
+        const coinbaseTx = Transaction.getCoinbaseTransaction(validator, this.getLatestBlock().index + 1);
         const tx = Wallet.createTransaction(receiverAddress, amount, privateKey, this.getUnspentTxOuts(), TransactionPool.getTransactionPool());
         const blockData = [coinbaseTx, tx];
-        return this.generateRawNextBlock(blockData);
+        return this.generateRawNextBlock(blockData, validator);
     }
 
     getAccountBalance(privateKey) {
@@ -124,14 +172,13 @@ class Blockchain {
     sendTransaction(privateKey, address, amount) {
         const tx = Wallet.createTransaction(address, amount, privateKey, this.getUnspentTxOuts(), TransactionPool.getTransactionPool());
         TransactionPool.addToTransactionPool(tx, this.getUnspentTxOuts());
-        console.log(TransactionPool.getTransactionPool());
         return tx;
     }
 
     replaceChain(newBlocks) {
         const aUnspentTxOuts = isValidChain(newBlocks);
         const validChain = aUnspentTxOuts !== null;
-        if (validChain && getAccumulatedDifficulty(newBlocks) > getAccumulatedDifficulty(this.getBlockchain())) {
+        if (validChain) {
             console.log('Received blockchain is valid. Replacing current blockchain with received blockchain');
             this.chain = newBlocks;
             this.unspentTxOuts = aUnspentTxOuts;
@@ -157,7 +204,7 @@ class Blockchain {
                     history.transfer.push(transaction);
                 }
                 else {
-                    if(transaction.txOuts.find(txOut => txOut.address === walletAddress)) {
+                    if (transaction.txOuts.find(txOut => txOut.address === walletAddress)) {
                         history.receive.push(transaction);
                     }
                 }
@@ -171,40 +218,7 @@ class Blockchain {
 /// SUPPORT FUNCTIONS ///
 const toHexString = byteArray => Array.from(byteArray, byte => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
 
-const getAdjustedDifficulty = (latestBlock, aBlockchain) => {
-    const prevAdjustmentBlock = aBlockchain[aBlockchain.length - DIFFICULTY_ADJUSTMENT_INTERVAL];
-    const timeExpected = BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSTMENT_INTERVAL;
-    const timeTaken = latestBlock.timestamp - prevAdjustmentBlock.timestamp;
-    if (timeTaken < timeExpected / 2) {
-        return prevAdjustmentBlock.difficulty + 1;
-    } else if (timeTaken > timeExpected * 2) {
-        return prevAdjustmentBlock.difficulty - 1;
-    } else {
-        return prevAdjustmentBlock.difficulty;
-    }
-};
-
-const getDifficulty = (aBlockchain) => {
-    const latestBlock = aBlockchain[aBlockchain.length - 1];
-    if (latestBlock.index % DIFFICULTY_ADJUSTMENT_INTERVAL === 0 && latestBlock.index !== 0) {
-        return getAdjustedDifficulty(latestBlock, aBlockchain);
-    } else {
-        return latestBlock.difficulty;
-    }
-};
-
 const getCurrentTimestamp = () => Math.round(new Date().getTime() / 1000);
-
-const findBlock = (index, previousHash, timestamp, transactions, difficulty) => {
-    let nonce = 0;
-    while (true) {
-        const hash = Block.calculateHash(index, previousHash, timestamp, transactions, difficulty, nonce);
-        if (Block.hashMatchesDifficulty(hash, difficulty)) {
-            return new Block({ index, hash, previousHash, timestamp, transactions, difficulty, nonce });
-        }
-        nonce++;
-    }
-};
 
 const isValidTimestamp = (newBlock, previousBlock) =>
     (previousBlock.timestamp - 60 < newBlock.timestamp) &&
@@ -213,10 +227,6 @@ const isValidTimestamp = (newBlock, previousBlock) =>
 const hasValidHash = (block) => {
     if (!Block.hashMatchesBlockContent(block)) {
         console.log('invalid hash, got:' + block.hash);
-        return false;
-    }
-    if (!Block.hashMatchesDifficulty(block.hash, block.difficulty)) {
-        console.log('block difficulty not satisfied. Expected: ' + block.difficulty + 'got: ' + block.hash);
         return false;
     }
     return true;
@@ -240,13 +250,6 @@ const isValidNewBlock = (newBlock, previousBlock) => {
         return false;
     }
     return true;
-};
-
-const getAccumulatedDifficulty = (aBlockchain) => {
-    return aBlockchain
-        .map((block) => block.difficulty)
-        .map((difficulty) => Math.pow(2, difficulty))
-        .reduce((a, b) => a + b);
 };
 
 

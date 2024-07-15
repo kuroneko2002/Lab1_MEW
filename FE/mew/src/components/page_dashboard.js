@@ -18,6 +18,7 @@ export default function Dashboard() {
     const [balance, setBalance] = useState(0);
     const [blockchain, setBlockchain] = useState([]);
     const [history, setHistory] = useState({});
+    const [userStake, setUserStake] = useState(0);
     const [isPopupOpen, setIsPopupOpen] = useState(false);
 
     const fetchData = useCallback(async (privateKey) => {
@@ -30,6 +31,9 @@ export default function Dashboard() {
 
             const historyResponse = await axios.post('http://localhost:5000/user/history', { privateKey });
             setHistory(historyResponse.data.data);
+
+            const myStake = await axios.post('http://localhost:5000/user/stake', { privateKey });
+            setUserStake(parseInt(myStake.data.data));
         } catch (error) {
             alert("Error fetching data!");
         }
@@ -76,6 +80,7 @@ export default function Dashboard() {
                     <div className='items-center justify-center ct-dashboard-column'>
                         <div className='py-3 text-xl font-bold'>Your Public Key:</div>
                         <DisplayKey publicKey={publicKey} />
+                        <div className='py-3 text-xl font-bold'>Your stake: {userStake}</div>
                     </div>
                     <div className='items-center justify-center ct-dashboard-column'>
                         <div className='py-3 text-xl font-bold'>Your Balance:</div>

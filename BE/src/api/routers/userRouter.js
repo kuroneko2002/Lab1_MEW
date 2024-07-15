@@ -8,5 +8,6 @@ router.post('/balance', userController.getBalance);
 router.post('/send', userController.transfer);
 router.post('/history', userController.historyTransaction);
 router.get('/blockchain', userController.getBlockchain);
+router.post('/stake', userController.getStake);
 
 module.exports = router;

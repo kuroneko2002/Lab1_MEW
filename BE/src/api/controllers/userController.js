@@ -53,13 +53,19 @@ function getBlockchain(req, res) {
     SetResponse(res, STATUS_CODES.OK, chain, "Get blockchain successfully!", null);
 }
 
+function getStake(req, res) {
+    const stake = bcService.getStake(req.body.privateKey);
+    SetResponse(res, STATUS_CODES.OK, stake, "Get stake successfully!", null);
+}
+
 const userController = {
     register,
     login,
     getBalance,
     transfer,
     historyTransaction,
-    getBlockchain
+    getBlockchain,
+    getStake
 };
 
 module.exports = userController;

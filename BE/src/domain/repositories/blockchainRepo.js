@@ -22,6 +22,10 @@ class blockchainRepository {
     getBlockchain() {
         return this.chain.getBlockchain();
     }
+
+    getStake(privateKey) {
+        return this.chain.getMyStake(privateKey);
+    }
 }
 
 module.exports = blockchainRepository;

@@ -1,12 +1,11 @@
 class Block {
-  constructor({index, previousHash, timestamp, transactions, hash, difficulty, nonce = 0}) {
+  constructor({ index, previousHash, timestamp, transactions, hash, validator }) {
     this.index = index;
     this.previousHash = previousHash;
     this.timestamp = timestamp;
-    this.transactions = JSON.parse(JSON.stringify(transactions));
+    this.transactions = transactions;  // Array of Transaction
     this.hash = hash;
-    this.difficulty = difficulty;
-    this.nonce = nonce;
+    this.validator = validator;
   }
 }
 

@@ -21,7 +21,7 @@ export default function TransactionTable({ transfers, address }) {
               <td className="py-2 px-4 border-b">
                 {transfer.txIns.map((txIn, txInIndex) => (
                   <div key={txInIndex}>
-                    {shortenString(txIn.txOutId)} (Index: {txIn.txOutIndex})
+                    {txIn.txOutId ? shortenString(txIn.txOutId) : 'Coinbase'} (Index: {txIn.txOutIndex})
                   </div>
                 ))}
               </td>
