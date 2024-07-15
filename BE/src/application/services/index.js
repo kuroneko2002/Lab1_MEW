@@ -41,6 +41,10 @@ class blockchainService {
         const retVal=  chain.map(block => new DTOs.BlockDTO(block));
         return retVal;
     }
+
+    getStake(privateKey) {
+        return this.blockchainRepo.getStake(privateKey);
+    }
 }
 
 module.exports = blockchainService;

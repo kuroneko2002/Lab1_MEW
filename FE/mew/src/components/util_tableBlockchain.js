@@ -14,8 +14,7 @@ const BlockchainTable = ({ data }) => {
             <th className="border border-slate-600 py-2 px-10 border-b">Previous Hash</th>
             <th className="border border-slate-600 py-2 px-10 border-b">Timestamp</th>
             <th className="border border-slate-600 py-2 px-10 border-b">Hash</th>
-            <th className="border border-slate-600 py-2 px-10 border-b">Difficulty</th>
-            <th className="border border-slate-600 py-2 px-10 border-b">Nonce</th>
+            <th className="border border-slate-600 py-2 px-10 border-b">Validator</th>
             <th className="border border-slate-600 py-2 px-10 border-b">Transactions</th>
           </tr>
         </thead>
@@ -26,8 +25,7 @@ const BlockchainTable = ({ data }) => {
               <td className="border border-slate-700 py-2 px-10 border-b">{block.previousHash ? shortenString(block.previousHash) : 'null'}</td>
               <td className="border border-slate-700 py-2 px-10 border-b">{new Date(block.timestamp * 1000).toLocaleString()}</td>
               <td className="border border-slate-700 py-2 px-10 border-b">{shortenString(block.hash)}</td>
-              <td className="border border-slate-700 py-2 px-10 border-b">{block.difficulty}</td>
-              <td className="border border-slate-700 py-2 px-10 border-b">{block.nonce}</td>
+              <td className="border border-slate-700 py-2 px-10 border-b">{shortenString(block.validator)}</td>
               <td className="border border-slate-700 py-2 px-10 border-b">
                 {block.transactions.map((tx, txIndex) => (
                   <div key={txIndex} className="mb-2">
